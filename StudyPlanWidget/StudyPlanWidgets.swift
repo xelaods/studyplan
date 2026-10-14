@@ -8,6 +8,7 @@ struct StudyPlanWidgets: WidgetBundle {
         TodayWidget()
         WeekWidget()
         CommuteWidget()
+        BusWidget()
     }
 }
 
@@ -209,5 +210,73 @@ struct CommuteWidgetFamilyView: View {
 
     var body: some View {
         CommuteWidgetView(plan: entry.plan, settings: entry.settings, now: entry.date, family: family)
+    }
+}
+
+// MARK: - スクールバス（次の便）
+
+struct BusEntry: TimelineEntry {
+    let date: Date
+    let day: BusDay?
+    let message: String?
+}
+
+struct BusProvider: TimelineProvider {
+    func placeholder(in context: Context) -> BusEntry {
+        BusEntry(date: Sample.previewNow, day: Sample.commutePlan().bus, message: nil)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (BusEntry) -> Void) {
+        if context.isPreview {
+            completion(placeholder(in: context))
+            return
+        }
+        Task {
+            let now = Date()
+            let day = try? await BusSource.day(now)
+            completion(BusEntry(date: now, day: day ?? Sample.commutePlan().bus, message: nil))
+        }
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<BusEntry>) -> Void) {
+        Task {
+            let now = Date()
+            var day: BusDay?
+            var message: String?
+            do { day = try await BusSource.day(now) } catch { message = "通信できません" }
+            // 「あと◯分」のため1分ごと（日付が変わったら取り直す）
+            let start = JST.date(now, minutes: JST.minutes(now))
+            let midnight = JST.adding(days: 1, to: JST.startOfDay(now))
+            var entries: [BusEntry] = []
+            for i in 0..<60 {
+                let t = start.addingTimeInterval(TimeInterval(i * 60))
+                if t >= midnight { break }
+                entries.append(BusEntry(date: i == 0 ? now : t, day: day, message: message))
+            }
+            let next = min(start.addingTimeInterval(60 * 60), midnight.addingTimeInterval(60))
+            completion(Timeline(entries: entries, policy: .after(message == nil ? next : now.addingTimeInterval(15 * 60))))
+        }
+    }
+}
+
+struct BusWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "Bus", provider: BusProvider()) { entry in
+            BusWidgetFamilyView(entry: entry)
+                .widgetBackground()
+                .widgetURL(URL(string: "studyplan://commute"))
+        }
+        .configurationDisplayName("スクールバス")
+        .description("おおたかの森駅 ⇄ 大学の次のスクールバスと、発車までの時間。")
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+struct BusWidgetFamilyView: View {
+    let entry: BusEntry
+    @Environment(\.widgetFamily) var family
+
+    var body: some View {
+        BusWidgetView(day: entry.day, message: entry.message, now: entry.date, family: family)
     }
 }

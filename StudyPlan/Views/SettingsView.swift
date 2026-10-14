@@ -198,6 +198,14 @@ struct WidgetGallery: View {
                     }
                 }
                 tile(width: 364, height: 170) { TodayWidgetView(schedule: schedule, now: now, family: .systemMedium) }
+                tile(width: 364, height: 170) { BusWidgetView(day: Sample.commutePlan().bus, message: nil, now: now, family: .systemMedium) }
+                HStack(spacing: 16) {
+                    tile(width: 170, height: 170) { BusWidgetView(day: Sample.commutePlan().bus, message: nil, now: now, family: .systemSmall) }
+                    tile(width: 170, height: 170) {
+                        BusWidgetView(day: BusDay(date: now, diaKey: "Oct10", dia: "特別ダイヤ", toUniv: [], toStation: [], unknown: true),
+                                      message: nil, now: now, family: .systemSmall)
+                    }
+                }
                 tile(width: 364, height: 382) { WeekWidgetView(schedule: schedule, now: now) }
                 CommuteWidgetView(plan: Sample.commutePlan(), settings: CommuteSettings(), now: now, family: .systemLarge)
                     .padding(14)
