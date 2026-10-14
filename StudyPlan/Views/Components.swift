@@ -45,6 +45,14 @@ struct CourseListRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            if course.isRequired {
+                Text("必修")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.red.opacity(0.12), in: Capsule())
+            }
             if course.absences > 0 {
                 Text("欠席\(course.absences)")
                     .font(.caption2.weight(.semibold))
@@ -104,36 +112,17 @@ struct SettingsLabel: View {
     }
 }
 
-/// カレンダーの色選びのような丸い色の並び
-struct ColorGrid: View {
-    @Binding var selection: CourseColor
+/// 必修（赤）・選択（青）の切り替え
+struct RequiredPicker: View {
+    @Binding var isRequired: Bool
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 12) {
-            ForEach(CourseColor.allCases) { c in
-                Button {
-                    selection = c
-                } label: {
-                    ZStack {
-                        Circle().fill(c.color)
-                        if selection == c {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .frame(width: 34, height: 34)
-                    .overlay {
-                        if selection == c {
-                            Circle().strokeBorder(c.color.opacity(0.4), lineWidth: 3).padding(-5)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(c.label)
-            }
+        Picker("区分", selection: $isRequired) {
+            Text("必修（赤）").tag(true)
+            Text("選択・その他（青）").tag(false)
         }
-        .padding(.vertical, 6)
+        .pickerStyle(.segmented)
+        .padding(.vertical, 2)
     }
 }
 

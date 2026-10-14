@@ -270,6 +270,7 @@ enum TimetableParser {
             let roomCol = col(["教室"])
             let termCol = col(["学期", "開講期", "開講時期", "期間", "開講区分"])
             let codeCol = col(["時間割コード", "講義コード", "授業コード", "科目コード", "コード"])
+            let reqCol = col(["必修選択", "必選", "必修", "履修区分"])
 
             var found: [CatalogCourse] = []
             for r in (h + 1)..<table.count {
@@ -294,9 +295,11 @@ enum TimetableParser {
                 let teacher = stripTeacher(cell(teacherCol).components(separatedBy: "\n").first ?? "")
                 let room = cell(roomCol).components(separatedBy: "\n").first ?? ""
                 let t = parseTerm(cell(termCol)) ?? parseTerm(cell(slotCol)) ?? term
+                let reqText = cell(reqCol)
+                let required: Bool? = reqText.contains("必修") ? true : (reqText.contains("選択") ? false : nil)
                 found.append(CatalogCourse(name: name, teacher: teacher, room: room,
                                            code: cell(codeCol).components(separatedBy: "\n").first ?? "",
-                                           slots: slots, term: t, source: source))
+                                           slots: slots, term: t, source: source, required: required))
             }
             if !found.isEmpty { return merged(found) }
         }

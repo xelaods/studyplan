@@ -24,7 +24,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Circle().fill(c.color.color).frame(width: 12, height: 12)
-                        Text(c.term.label)
+                        Text("\(c.kindLabel)・\(c.term.label)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -86,12 +86,14 @@ struct CourseDetailView: View {
                     .lineLimit(3...10)
             }
 
-            Section("色") {
-                ColorGrid(selection: Binding(get: { course.wrappedValue.color }, set: { new in
-                    var updated = course.wrappedValue
-                    updated.color = new
-                    store.save(updated)
+            Section {
+                RequiredPicker(isRequired: Binding(get: { course.wrappedValue.isRequired }, set: { new in
+                    store.setRequired(courseID, new)
                 }))
+            } header: {
+                Text("区分")
+            } footer: {
+                Text("必修は赤、それ以外は青で表示します。同じ名前の授業はまとめて変わります。")
             }
 
             Section {
@@ -183,8 +185,12 @@ struct CourseEditor: View {
                     }
                 }
 
-                Section("色") {
-                    ColorGrid(selection: $course.color)
+                Section {
+                    RequiredPicker(isRequired: $course.isRequired)
+                } header: {
+                    Text("区分")
+                } footer: {
+                    Text("必修は赤、それ以外は青で表示します。")
                 }
 
                 Section("メモ") {

@@ -11,6 +11,12 @@ final class Store: ObservableObject {
     }
     @Published var calendarAccess: Bool = CalendarBridge.hasAccess
 
+    // 通学（スクールバス × 電車）
+    @Published var commutePlan: CommutePlan?
+    @Published var commuteLoading = false
+    @Published var commuteMode: CommuteMode = .auto
+    private var commuteTask: Task<Void, Never>?
+
     private var saveTask: Task<Void, Never>?
 
     private init() {
@@ -89,9 +95,9 @@ final class Store: ObservableObject {
         } else {
             data.courses.append(c)
         }
-        // 同じ授業名の色はそろえる
+        // 同じ授業名の必修・選択はそろえる
         for i in data.courses.indices where data.courses[i].id != c.id && TimetableParser.fold(data.courses[i].name) == TimetableParser.fold(c.name) {
-            data.courses[i].color = c.color
+            data.courses[i].isRequired = c.isRequired
         }
     }
 
@@ -103,16 +109,24 @@ final class Store: ObservableObject {
         data.courses.removeAll()
     }
 
-    func suggestedColor(for name: String) -> CourseColor {
+    /// 同じ授業名がすでにあればそれに合わせる。なければシラバスの記載、それもなければ選択（青）
+    func suggestedRequired(for name: String, catalog: Bool? = nil) -> Bool {
         if let same = data.courses.first(where: { TimetableParser.fold($0.name) == TimetableParser.fold(name) }) {
-            return same.color
+            return same.isRequired
         }
-        return CourseColor.suggest(for: name, used: data.courses.map(\.color))
+        return catalog ?? false
+    }
+
+    /// 必修・選択の切り替え（同じ授業名すべて）
+    func setRequired(_ id: UUID, _ on: Bool) {
+        guard var c = course(id) else { return }
+        c.isRequired = on
+        save(c)
     }
 
     /// 新しい授業のひな形
     func draft(day: Weekday?, period: Int?) -> Course {
-        Course(name: "", day: day, period: period, term: term, color: CourseColor.suggest(for: UUID().uuidString, used: data.courses.map(\.color)))
+        Course(name: "", day: day, period: period, term: term)
     }
 
     // MARK: 取得した授業
@@ -125,7 +139,7 @@ final class Store: ObservableObject {
     /// 取得した授業をそのまま（曜日・時限どおりに）入れる
     func add(_ catalog: [CatalogCourse], term fallback: Term) {
         for c in catalog where !isRegistered(c) {
-            for course in c.makeCourses(term: fallback, color: suggestedColor(for: c.name)) {
+            for course in c.makeCourses(term: fallback, required: suggestedRequired(for: c.name, catalog: c.required)) {
                 save(course)
             }
         }
@@ -142,7 +156,7 @@ final class Store: ObservableObject {
             while periods.contains(p + 1) { p += 1; length += 1 }
         }
         save(Course(name: c.name, teacher: c.teacher, room: c.room, day: day, period: period, length: length,
-                    term: term, color: suggestedColor(for: c.name), code: c.code, sourceID: c.id))
+                    term: term, isRequired: suggestedRequired(for: c.name, catalog: c.required), code: c.code, sourceID: c.id))
     }
 
     func mergeCatalog(_ list: [CatalogCourse]) {
@@ -174,6 +188,36 @@ final class Store: ObservableObject {
         data.catalog.filter { $0.has(day: day, period: period) && ($0.term?.applies(to: term) ?? true) }
     }
 
+    // MARK: 通学
+
+    /// 乗り継ぎを調べ直す（force: バス時刻表も取り直す）
+    func refreshCommute(force: Bool = false) {
+        if Store.isDemo {
+            commutePlan = Sample.commutePlan()
+            return
+        }
+        commuteTask?.cancel()
+        let schedule = self.schedule
+        let settings = data.commute
+        let mode = commuteMode
+        commuteLoading = true
+        commuteTask = Task {
+            let plan = await CommutePlanner.plan(schedule: schedule, settings: settings, now: Clock.now, mode: mode, rows: 9, force: force)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                Store.shared.commutePlan = plan
+                Store.shared.commuteLoading = false
+                WidgetCenter.shared.reloadTimelines(ofKind: "Commute")
+            }
+        }
+    }
+
+    /// 乗り換え検索の結果を消して調べ直す
+    func clearCommuteCache() {
+        CommuteCache.clearAll()
+        refreshCommute(force: true)
+    }
+
     // MARK: ウィジェット（カレンダー経由）
 
     func requestCalendarAccess() async {
@@ -200,7 +244,7 @@ final class AppRouter: ObservableObject {
 }
 
 enum MainTab: Hashable {
-    case today, week, courses, settings
+    case today, week, commute, courses, settings
 
     static var initial: MainTab {
         let args = ProcessInfo.processInfo.arguments
@@ -209,6 +253,7 @@ enum MainTab: Hashable {
         case "week": return .week
         case "courses": return .courses
         case "settings": return .settings
+        case "commute": return .commute
         default: return .today
         }
     }

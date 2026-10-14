@@ -121,37 +121,12 @@ struct PeriodTime: Codable, Hashable, Identifiable {
     static let maxCount = 7
 }
 
-// MARK: - 色（カレンダーの色と同じ並び）
+// MARK: - 色（必修は赤、それ以外は青）
 
 enum CourseColor: String, Codable, CaseIterable, Identifiable, Hashable {
-    case red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown
+    case red, blue
 
     var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .red: return "レッド"
-        case .orange: return "オレンジ"
-        case .yellow: return "イエロー"
-        case .green: return "グリーン"
-        case .mint: return "ミント"
-        case .teal: return "ティール"
-        case .cyan: return "シアン"
-        case .blue: return "ブルー"
-        case .indigo: return "インディゴ"
-        case .purple: return "パープル"
-        case .pink: return "ピンク"
-        case .brown: return "ブラウン"
-        }
-    }
-
-    /// まだ使っていない色を順に（すべて使っていれば名前から決める）
-    static func suggest(for name: String, used: [CourseColor]) -> CourseColor {
-        let order: [CourseColor] = [.blue, .orange, .green, .purple, .red, .teal, .pink, .indigo, .yellow, .mint, .cyan, .brown]
-        if let free = order.first(where: { !used.contains($0) }) { return free }
-        let sum = name.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
-        return order[sum % order.count]
-    }
 }
 
 // MARK: - 時間割に入れた授業
@@ -167,7 +142,8 @@ struct Course: Codable, Identifiable, Hashable {
     /// 続けて何コマか
     var length: Int
     var term: Term
-    var color: CourseColor
+    /// 必修（赤で表示）
+    var isRequired: Bool
     var code: String
     var memo: String
     var absences: Int
@@ -177,7 +153,7 @@ struct Course: Codable, Identifiable, Hashable {
 
     init(id: UUID = UUID(), name: String, teacher: String = "", room: String = "",
          day: Weekday?, period: Int?, length: Int = 1, term: Term = .full,
-         color: CourseColor = .blue, code: String = "", memo: String = "",
+         isRequired: Bool = false, code: String = "", memo: String = "",
          absences: Int = 0, lates: Int = 0, sourceID: String? = nil) {
         self.id = id
         self.name = name
@@ -187,7 +163,7 @@ struct Course: Codable, Identifiable, Hashable {
         self.period = period
         self.length = max(1, length)
         self.term = term
-        self.color = color
+        self.isRequired = isRequired
         self.code = code
         self.memo = memo
         self.absences = absences
@@ -196,7 +172,7 @@ struct Course: Codable, Identifiable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, teacher, room, day, period, length, term, color, code, memo, absences, lates, sourceID
+        case id, name, teacher, room, day, period, length, term, isRequired, code, memo, absences, lates, sourceID
     }
 
     init(from decoder: Decoder) throws {
@@ -209,13 +185,17 @@ struct Course: Codable, Identifiable, Hashable {
         period = try c.decodeIfPresent(Int.self, forKey: .period)
         length = max(1, try c.decodeIfPresent(Int.self, forKey: .length) ?? 1)
         term = try c.decodeIfPresent(Term.self, forKey: .term) ?? .full
-        color = (try? c.decodeIfPresent(CourseColor.self, forKey: .color)) ?? .blue
+        isRequired = try c.decodeIfPresent(Bool.self, forKey: .isRequired) ?? false
         code = try c.decodeIfPresent(String.self, forKey: .code) ?? ""
         memo = try c.decodeIfPresent(String.self, forKey: .memo) ?? ""
         absences = try c.decodeIfPresent(Int.self, forKey: .absences) ?? 0
         lates = try c.decodeIfPresent(Int.self, forKey: .lates) ?? 0
         sourceID = try c.decodeIfPresent(String.self, forKey: .sourceID)
     }
+
+    var color: CourseColor { isRequired ? .red : .blue }
+
+    var kindLabel: String { isRequired ? "必修" : "選択" }
 
     var lastPeriod: Int? { period.map { $0 + length - 1 } }
 
@@ -257,9 +237,12 @@ struct CatalogCourse: Codable, Identifiable, Hashable {
     var slots: [Slot]
     var term: Term?
     var source: String
+    /// 必修かどうか（シラバスに書いてあるとき）
+    var required: Bool?
 
     init(name: String, teacher: String = "", room: String = "", code: String = "",
-         slots: [Slot] = [], term: Term? = nil, source: String = "") {
+         slots: [Slot] = [], term: Term? = nil, source: String = "", required: Bool? = nil) {
+        self.required = required
         self.name = name
         self.teacher = teacher
         self.room = room
@@ -294,11 +277,11 @@ struct CatalogCourse: Codable, Identifiable, Hashable {
     }
 
     /// 曜日ごとに続いた時限をまとめて、時間割の授業にする
-    func makeCourses(term fallback: Term, color: CourseColor) -> [Course] {
+    func makeCourses(term fallback: Term, required: Bool) -> [Course] {
         let term = self.term ?? fallback
         guard !slots.isEmpty else {
             return [Course(name: name, teacher: teacher, room: room, day: nil, period: nil,
-                           term: term, color: color, code: code, sourceID: id)]
+                           term: term, isRequired: required, code: code, sourceID: id)]
         }
         var result: [Course] = []
         let byDay = Dictionary(grouping: slots, by: \.day)
@@ -307,7 +290,7 @@ struct CatalogCourse: Codable, Identifiable, Hashable {
             var runStart = periods[0], prev = periods[0]
             func flush() {
                 result.append(Course(name: name, teacher: teacher, room: room, day: day, period: runStart,
-                                     length: prev - runStart + 1, term: term, color: color, code: code, sourceID: id))
+                                     length: prev - runStart + 1, term: term, isRequired: required, code: code, sourceID: id))
             }
             for p in periods.dropFirst() {
                 if p == prev + 1 { prev = p } else { flush(); runStart = p; prev = p }
@@ -323,6 +306,7 @@ struct CatalogCourse: Codable, Identifiable, Hashable {
         if room.isEmpty { room = other.room }
         if code.isEmpty { code = other.code }
         if teacher.isEmpty { teacher = other.teacher }
+        if required == nil { required = other.required }
     }
 }
 
@@ -336,11 +320,12 @@ struct AppData: Codable, Equatable {
     var periodCount: Int = 5
     var showSaturday: Bool = false
     var termMode: TermMode = .auto
+    var commute = CommuteSettings()
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case courses, catalog, catalogUpdated, periods, periodCount, showSaturday, termMode
+        case courses, catalog, catalogUpdated, periods, periodCount, showSaturday, termMode, commute
     }
 
     init(from decoder: Decoder) throws {
@@ -353,12 +338,13 @@ struct AppData: Codable, Equatable {
         periodCount = min(PeriodTime.maxCount, max(1, try c.decodeIfPresent(Int.self, forKey: .periodCount) ?? 5))
         showSaturday = try c.decodeIfPresent(Bool.self, forKey: .showSaturday) ?? false
         termMode = try c.decodeIfPresent(TermMode.self, forKey: .termMode) ?? .auto
+        commute = (try? c.decodeIfPresent(CommuteSettings.self, forKey: .commute)) ?? CommuteSettings()
     }
 
     /// ウィジェットに渡す分
     var snapshot: WidgetSnapshot {
         WidgetSnapshot(courses: courses, periods: periods, periodCount: periodCount,
-                       showSaturday: showSaturday, termMode: termMode, updated: Date())
+                       showSaturday: showSaturday, termMode: termMode, commute: commute, updated: Date())
     }
 }
 
@@ -369,6 +355,7 @@ struct WidgetSnapshot: Codable {
     var periodCount: Int
     var showSaturday: Bool
     var termMode: TermMode
+    var commute: CommuteSettings?
     var updated: Date
 
     var schedule: Schedule {

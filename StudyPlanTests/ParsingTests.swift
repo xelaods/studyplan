@@ -98,7 +98,7 @@ final class ParsingTests: XCTestCase {
 
     func testMakeCourses() {
         let c = CatalogCourse(name: "情報文化演習", slots: [Slot(day: .mon, period: 4), Slot(day: .mon, period: 5), Slot(day: .thu, period: 2)], term: .second)
-        let courses = c.makeCourses(term: .first, color: .blue)
+        let courses = c.makeCourses(term: .first, required: false)
         XCTAssertEqual(courses.count, 2)
         XCTAssertEqual(courses[0].day, .mon)
         XCTAssertEqual(courses[0].period, 4)
@@ -125,5 +125,63 @@ final class ParsingTests: XCTestCase {
         let b = s.items(on: now)[1]
         XCTAssertEqual(JST.hm(b.start), "13:10")
         XCTAssertEqual(JST.hm(b.end), "16:40")
+    }
+
+    // MARK: 通学
+
+    private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12, _ mi: Int = 0) -> Date {
+        var c = DateComponents()
+        c.year = y; c.month = m; c.day = d; c.hour = h; c.minute = mi
+        return JST.calendar.date(from: c)!
+    }
+
+    private let busHTML = """
+    <script>
+    let reki_year = 2026;
+    let reki_st = [410, 920, 0];
+    let reki_fin = [731, 1231, 0];
+    let reki_jogai = [1103];
+    let toku = [];
+    toku[10] = {"Oct10":[10]};
+    const jkndaiR_A = [["時","分","分","分"],[9, 0, 30, ""],[10, 15, "", ""]];
+    const jkndaiS_A = [["分","分","時"],[40, "", 8],[5, 50, 9]];
+    </script>
+    """
+
+    func testBusDia() {
+        let wed = BusSource.day(date(2026, 10, 14), html: busHTML)
+        XCTAssertEqual(wed.diaKey, "A")
+        XCTAssertEqual(wed.toStation, [9 * 60, 9 * 60 + 30, 10 * 60 + 15])
+        XCTAssertEqual(wed.toUniv, [8 * 60 + 40, 9 * 60 + 5, 9 * 60 + 50])
+        XCTAssertEqual(BusSource.day(date(2026, 11, 3), html: busHTML).diaKey, "ND")
+        XCTAssertEqual(BusSource.day(date(2026, 10, 18), html: busHTML).diaKey, "ND") // 日曜
+        let special = BusSource.day(date(2026, 10, 10), html: busHTML)
+        XCTAssertEqual(special.diaKey, "Oct10")
+        XCTAssertTrue(special.unknown)
+        XCTAssertEqual(BusSource.day(date(2026, 8, 20), html: busHTML).diaKey, "ND") // 夏休み
+    }
+
+    func testTransitParse() {
+        let html = """
+        <div id="route01"><li class="time"><span>8:02発</span>→<span class="mark">8:48</span>着</li><li>乗換：2回</li></div>
+        <div id="route02"><li class="time">8:14発 → 9:00着</li></div>
+        <div id="route03"><li class="time">8:14発 → 9:00着</li></div>
+        """
+        let routes = Transit.parseRoutes(html)
+        XCTAssertEqual(routes.count, 2)
+        XCTAssertEqual(routes[0], TrainRoute(dep: 8 * 60 + 2, arr: 8 * 60 + 48, transfers: 2))
+        XCTAssertEqual(routes[1].dep, 8 * 60 + 14)
+    }
+
+    func testCommuteLabels() {
+        let section = CommuteSection(direction: .go, title: "", subtitle: "", date: Date(), isToday: true, rows: [
+            CommuteRow(bus: 500, train: TrainRoute(dep: 450, arr: 495)),
+            CommuteRow(bus: 515, train: TrainRoute(dep: 465, arr: 510), isLast: true),
+            CommuteRow(bus: 530, train: TrainRoute(dep: 480, arr: 525), late: true, lateBy: 4),
+        ])
+        XCTAssertEqual(CommuteLabel.label(section.rows[1], index: 1, section: section, now: 440).text, "あと25分 ギリ")
+        XCTAssertEqual(CommuteLabel.label(section.rows[2], index: 2, section: section, now: 440).text, "4分遅刻")
+        XCTAssertEqual(CommuteLabel.highlight(section, now: 440), 0)
+        XCTAssertEqual(CommuteLabel.visibleRows(section, now: 460).count, 2)
     }
 }

@@ -199,6 +199,11 @@ struct WidgetGallery: View {
                 }
                 tile(width: 364, height: 170) { TodayWidgetView(schedule: schedule, now: now, family: .systemMedium) }
                 tile(width: 364, height: 382) { WeekWidgetView(schedule: schedule, now: now) }
+                CommuteWidgetView(plan: Sample.commutePlan(), settings: CommuteSettings(), now: now, family: .systemLarge)
+                    .padding(14)
+                    .frame(width: 364, height: 382)
+                    .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.secondary.opacity(0.2)))
                 tile(width: 364, height: 382) { TodayWidgetView(schedule: schedule, now: now, family: .systemLarge) }
 
                 Text("ロック画面")

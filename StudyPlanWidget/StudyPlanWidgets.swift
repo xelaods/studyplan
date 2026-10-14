@@ -7,6 +7,7 @@ struct StudyPlanWidgets: WidgetBundle {
         NextClassWidget()
         TodayWidget()
         WeekWidget()
+        CommuteWidget()
     }
 }
 
@@ -137,5 +138,76 @@ struct WeekWidget: Widget {
         .configurationDisplayName("時間割")
         .description("1週間の時間割。今日の列と授業中のコマがわかります。")
         .supportedFamilies([.systemLarge])
+    }
+}
+
+// MARK: - 通学（スクールバス × 電車）
+
+struct CommuteEntry: TimelineEntry {
+    let date: Date
+    let plan: CommutePlan?
+    let settings: CommuteSettings
+}
+
+struct CommuteProvider: TimelineProvider {
+    func placeholder(in context: Context) -> CommuteEntry {
+        CommuteEntry(date: Sample.previewNow, plan: Sample.commutePlan(), settings: CommuteSettings())
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (CommuteEntry) -> Void) {
+        if context.isPreview || SharedStore.loadSnapshot() == nil {
+            completion(CommuteEntry(date: Sample.previewNow, plan: Sample.commutePlan(), settings: CommuteSettings()))
+            return
+        }
+        Task {
+            let entry = await makeEntry(now: Date())
+            completion(entry)
+        }
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<CommuteEntry>) -> Void) {
+        Task {
+            let now = Date()
+            let entry = await makeEntry(now: now)
+            // 「あと◯分」を進めるため5分ごとの表示を作り、15分後に検索し直す
+            var entries = [entry]
+            for i in 1...3 {
+                entries.append(CommuteEntry(date: now.addingTimeInterval(TimeInterval(i * 300)), plan: entry.plan, settings: entry.settings))
+            }
+            completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(15 * 60))))
+        }
+    }
+
+    private func makeEntry(now: Date) async -> CommuteEntry {
+        guard let snap = SharedStore.loadSnapshot() else {
+            return CommuteEntry(date: now, plan: CommutePlan(title: "通学", dia: "", sections: [],
+                                                             message: "アプリで授業を登録してください", generated: now, bus: nil),
+                                settings: CommuteSettings())
+        }
+        let settings = snap.commute ?? CommuteSettings()
+        let plan = await CommutePlanner.plan(schedule: snap.schedule, settings: settings, now: now)
+        return CommuteEntry(date: now, plan: plan, settings: settings)
+    }
+}
+
+struct CommuteWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "Commute", provider: CommuteProvider()) { entry in
+            CommuteWidgetFamilyView(entry: entry)
+                .containerBackground(for: .widget) { Color(.systemGroupedBackground) }
+                .widgetURL(URL(string: "studyplan://commute"))
+        }
+        .configurationDisplayName("通学")
+        .description("スクールバスと電車の乗り継ぎ。時間割の1限に間に合う便と、帰りの便を表示します。")
+        .supportedFamilies([.systemMedium, .systemLarge])
+    }
+}
+
+struct CommuteWidgetFamilyView: View {
+    let entry: CommuteEntry
+    @Environment(\.widgetFamily) var family
+
+    var body: some View {
+        CommuteWidgetView(plan: entry.plan, settings: entry.settings, now: entry.date, family: family)
     }
 }

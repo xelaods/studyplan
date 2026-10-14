@@ -51,6 +51,12 @@ struct CoursesView: View {
                                     NavigationLink(value: c.id) {
                                         CourseListRow(course: c, showSlot: true)
                                     }
+                                    .swipeActions(edge: .leading) {
+                                        Button(c.isRequired ? "選択にする" : "必修にする") {
+                                            store.setRequired(c.id, !c.isRequired)
+                                        }
+                                        .tint(c.isRequired ? .blue : .red)
+                                    }
                                 }
                                 .onDelete { idx in
                                     for i in idx { store.remove(list[i].id) }

@@ -46,6 +46,9 @@ struct MainTabView: View {
             WeekView()
                 .tabItem { Label("時間割", systemImage: "calendar") }
                 .tag(MainTab.week)
+            CommuteView()
+                .tabItem { Label("通学", systemImage: "bus") }
+                .tag(MainTab.commute)
             CoursesView()
                 .tabItem { Label("授業", systemImage: "books.vertical") }
                 .tag(MainTab.courses)
@@ -59,6 +62,7 @@ struct MainTabView: View {
             switch url.host {
             case "week": router.tab = .week
             case "courses": router.tab = .courses
+            case "commute": router.tab = .commute
             case "settings": router.tab = .settings
             case "import": importing = .portal
             default: router.tab = .today

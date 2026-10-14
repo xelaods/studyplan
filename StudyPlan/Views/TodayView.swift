@@ -3,6 +3,7 @@ import SwiftUI
 /// 今日の授業（リマインダーやカレンダーの一覧のような画面）
 struct TodayView: View {
     @EnvironmentObject var store: Store
+    @EnvironmentObject var router: AppRouter
     @State var importing: ImportSource?
 
     var body: some View {
@@ -16,6 +17,9 @@ struct TodayView: View {
                 CourseDetailView(courseID: id)
             }
             .sheet(item: $importing) { ImportView(source: $0) }
+            .onAppear {
+                if store.commutePlan == nil { store.refreshCommute() }
+            }
         }
     }
 
@@ -46,6 +50,24 @@ struct TodayView: View {
                 Section {
                     NavigationLink(value: item.course.id) {
                         FocusCard(item: item, label: focus.label, isNow: focus.isNow, now: now)
+                    }
+                }
+            }
+
+            if !schedule.isEmpty, let plan = store.commutePlan,
+               let section = plan.sections.first(where: { !CommuteLabel.visibleRows($0, now: JST.minutes(now)).isEmpty }) {
+                Section {
+                    Button {
+                        router.tab = .commute
+                    } label: {
+                        CommuteSummary(section: section, settings: store.data.commute, now: JST.minutes(now))
+                    }
+                    .foregroundStyle(.primary)
+                } header: {
+                    HStack {
+                        Text(section.direction == .go ? "通学" : "帰り")
+                        Spacer()
+                        Text(plan.dia)
                     }
                 }
             }
@@ -238,5 +260,37 @@ struct OnboardingCard: View {
             .controlSize(.large)
         }
         .padding(.vertical, 8)
+    }
+}
+
+/// 今日の画面に出す、乗り継ぎの一番大事な1本
+struct CommuteSummary: View {
+    let section: CommuteSection
+    let settings: CommuteSettings
+    let now: Int
+
+    var body: some View {
+        let rows = CommuteLabel.visibleRows(section, now: now)
+        let shown = CommuteSection(direction: section.direction, title: section.title, subtitle: section.subtitle,
+                                   date: section.date, isToday: section.isToday, rows: rows)
+        let i = CommuteLabel.highlight(shown, now: now) ?? 0
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(section.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            CommuteColumnHeader(direction: section.direction, settings: settings, widths: [82, 76, 76], font: .caption2.weight(.semibold))
+            if i < rows.count {
+                CommuteRowView(row: rows[i], direction: section.direction,
+                               label: CommuteLabel.label(rows[i], index: i, section: shown, now: now),
+                               highlighted: true, widths: [82, 76, 76], big: 22, small: 15)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
