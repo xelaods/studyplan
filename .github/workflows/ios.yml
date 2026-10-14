@@ -64,7 +64,7 @@ jobs:
               name=${spec%%|*}; args=${spec#*|}
               xcrun simctl terminate "$UDID" app.studyplan || true
               xcrun simctl launch "$UDID" app.studyplan -demo -now 2026-10-13T10:20 $args
-              sleep 5
+              sleep 9
               xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$name-$mode.png"
             done
           done
