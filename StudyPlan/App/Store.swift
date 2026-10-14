@@ -33,14 +33,14 @@ final class Store: ObservableObject {
         guard !Store.isDemo else { return }
         saveTask?.cancel()
         let snapshot = data
-        saveTask = Task { [weak self] in
+        saveTask = Task {
             try? await Task.sleep(nanoseconds: 350_000_000)
             guard !Task.isCancelled else { return }
-            await MainActor.run { self?.write(snapshot) }
+            Store.write(snapshot)
         }
     }
 
-    private func write(_ value: AppData) {
+    private static func write(_ value: AppData) {
         SharedStore.saveData(value)
         SharedStore.saveSnapshot(value.snapshot)
         WidgetCenter.shared.reloadAllTimelines()
@@ -50,7 +50,7 @@ final class Store: ObservableObject {
     func flush() {
         guard !Store.isDemo else { return }
         saveTask?.cancel()
-        write(data)
+        Store.write(data)
     }
 
     func reload() {
@@ -67,7 +67,7 @@ final class Store: ObservableObject {
     func binding(_ id: UUID) -> Binding<Course>? {
         guard data.courses.contains(where: { $0.id == id }) else { return nil }
         return Binding(
-            get: { [weak self] in self?.data.courses.first { $0.id == id } ?? Course(name: "", day: nil, period: nil) },
+            get: { [weak self] in self?.data.courses.first(where: { $0.id == id }) ?? Course(name: "", day: nil, period: nil) },
             set: { [weak self] new in
                 guard let self, let i = self.data.courses.firstIndex(where: { $0.id == id }) else { return }
                 self.data.courses[i] = new
