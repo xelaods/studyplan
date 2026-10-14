@@ -1,0 +1,3 @@
+// アプリ本体の設定。
+PRODUCT_BUNDLE_IDENTIFIER = app.studyplan
+APP_GROUP_ID = group.app.studyplan
