@@ -61,7 +61,7 @@ struct WeekView: View {
             }
         } label: {
             HStack(spacing: 3) {
-                Text("\(AcademicYear.of(Clock.now))年度 \(shownTerm.label)")
+                Text("\(String(AcademicYear.of(Clock.now)))年度 \(shownTerm.label)")
                 Image(systemName: "chevron.down").font(.caption2.weight(.bold))
             }
             .font(.subheadline.weight(.medium))

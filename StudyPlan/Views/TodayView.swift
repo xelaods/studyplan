@@ -30,7 +30,7 @@ struct TodayView: View {
                     Text(JST.format(now, "M月d日 EEEE"))
                         .font(.title3.weight(.semibold))
                     Spacer()
-                    Text("\(AcademicYear.of(now))年度 \(schedule.term(on: now).label)")
+                    Text("\(String(AcademicYear.of(now)))年度 \(schedule.term(on: now).label)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
