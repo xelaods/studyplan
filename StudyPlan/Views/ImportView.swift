@@ -367,9 +367,9 @@ final class WebModel: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     }
 
     /// 画面の表を、結合セル（rowspan・colspan）を展開した2次元の文字列にして返す
-    static let extractScript = """
+    static let extractScript = #"""
     (function(){
-      function txt(el){ return ((el && (el.innerText || el.textContent)) || '').replace(/\\u00a0/g,' ').replace(/[ \\t]+\\n/g,'\\n').trim(); }
+      function txt(el){ return ((el && (el.innerText || el.textContent)) || '').replace(/\u00a0/g,' ').replace(/[ \t]+\n/g,'\n').trim(); }
       function grid(table){
         var rows = table.rows, m = [];
         for (var r = 0; r < rows.length; r++) {
@@ -422,11 +422,11 @@ final class WebModel: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
           }
           if (g2.length > 1) tables.push({ rows: g2, label: '' });
         }
-        text += '\\n' + txt(doc.body || doc.documentElement);
+        text += '\n' + txt(doc.body || doc.documentElement);
       }
       return JSON.stringify({ tables: tables, text: text.slice(0, 200000), title: document.title || '', url: location.href });
     })();
-    """
+    """#
 }
 
 struct WebView: UIViewRepresentable {
