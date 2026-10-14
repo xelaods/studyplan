@@ -30,13 +30,16 @@ struct BusWidgetView: View {
             Image(systemName: "bus.fill")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(day?.hasTimes == false ? Color.secondary : CommuteColors.bus)
-            Text("スクールバス")
+            Text(family == .systemSmall ? "バス" : "スクールバス")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
             Spacer(minLength: 4)
             Text("\(JST.month(now))/\(JST.day(now))（\(weekdayText)）")
                 .font(.system(size: 11, weight: .medium))
                 .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
         }
     }
 
