@@ -241,17 +241,24 @@ final class AppRouter: ObservableObject {
     static let shared = AppRouter()
     @Published var tab: MainTab = MainTab.initial
     @Published var openCourse: UUID?
+    /// 時間割タブで授業の一覧を開く
+    @Published var showCourses = MainTab.argument == "courses"
+    @Published var attendMode: AttendMode = ProcessInfo.processInfo.arguments.contains("-status") ? .status : .register
 }
 
 enum MainTab: Hashable {
-    case today, week, commute, courses, settings
+    case today, week, attend, commute, settings
+
+    static var argument: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-tab"), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
 
     static var initial: MainTab {
-        let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "-tab"), i + 1 < args.count else { return .today }
-        switch args[i + 1] {
-        case "week": return .week
-        case "courses": return .courses
+        switch argument {
+        case "week", "courses": return .week
+        case "attend": return .attend
         case "settings": return .settings
         case "commute": return .commute
         default: return .today

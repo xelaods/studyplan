@@ -4,6 +4,7 @@ import SwiftUI
 struct CourseDetailView: View {
     let courseID: UUID
     @EnvironmentObject var store: Store
+    @ObservedObject var attendance = AttendanceStore.shared
     @Environment(\.dismiss) var dismiss
     @State var editing = false
     @State var confirmDelete = false
@@ -58,27 +59,40 @@ struct CourseDetailView: View {
                 }
             }
 
-            Section {
-                Stepper(value: course.absences, in: 0...30) {
-                    HStack {
-                        Label("欠席", systemImage: "person.crop.circle.badge.xmark")
-                        Spacer()
-                        Text("\(c.absences)回")
-                            .monospacedDigit()
-                            .foregroundStyle(c.absences >= 4 ? Soft.red : Color.secondary)
+            if let record = attendance.record(for: c) {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        AttendanceCounts(course: record)
+                        SessionStrip(sessions: record.sessions)
+                    }
+                    .padding(.vertical, 4)
+                    NavigationLink {
+                        AttendanceDetailView(course: record)
+                    } label: {
+                        Text("各回の記録")
+                    }
+                } header: {
+                    Text("出席（エドヘン）")
+                } footer: {
+                    if let updated = attendance.updatedAt {
+                        Text("\(updated.formatted(date: .abbreviated, time: .shortened)) に更新")
                     }
                 }
-                Stepper(value: course.lates, in: 0...30) {
-                    HStack {
-                        Label("遅刻", systemImage: "clock.badge.exclamationmark")
-                        Spacer()
-                        Text("\(c.lates)回").monospacedDigit().foregroundStyle(.secondary)
+            } else {
+                Section {
+                    Stepper(value: course.absences, in: 0...30) {
+                        LabeledContent("欠席", value: "\(c.absences) 回")
                     }
+                    Stepper(value: course.lates, in: 0...30) {
+                        LabeledContent("遅刻", value: "\(c.lates) 回")
+                    }
+                } header: {
+                    Text("出欠のメモ")
+                } footer: {
+                    Text(attendance.hasAccount
+                         ? "エドヘンの出席状況にこの授業が見つからないため、手入力のメモを表示しています。"
+                         : "「設定」でエドヘンのアカウントを登録すると、エドヘンの出席状況を表示します。")
                 }
-            } header: {
-                Text("出欠のメモ")
-            } footer: {
-                Text("このアプリの中だけのメモです。エドヘンの出席記録とは連動しません。")
             }
 
             Section("メモ") {

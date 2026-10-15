@@ -32,6 +32,7 @@ enum ImportSource: String, Identifiable, CaseIterable {
 struct CourseListRow: View {
     let course: Course
     var showSlot: Bool = true
+    @ObservedObject var attendance = AttendanceStore.shared
 
     var body: some View {
         HStack(spacing: 12) {
@@ -53,10 +54,15 @@ struct CourseListRow: View {
                     .padding(.vertical, 2)
                     .background(Soft.red.opacity(0.14), in: Capsule())
             }
-            if course.absences > 0 {
-                Text("欠席\(course.absences)")
+            let absences = attendance.record(for: course)?.absent ?? course.absences
+            if absences > 0 {
+                Text("欠\(absences)")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(course.absences >= 4 ? Soft.red : Color.secondary)
+                    .monospacedDigit()
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .foregroundStyle(absences >= 3 ? .white : .red)
+                    .background(absences >= 4 ? Color.red : (absences >= 3 ? Color.orange : Color.red.opacity(0.14)), in: Capsule())
             }
         }
     }
@@ -85,30 +91,14 @@ struct CourseBadge: View {
     }
 }
 
-/// 設定アプリのような、色付きアイコンのラベル
-struct SettingsIcon: View {
-    let systemName: String
-    let color: Color
-
-    var body: some View {
-        Image(systemName: systemName)
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 29, height: 29)
-            .background(color.blended(with: .white, by: 0.12).gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-    }
-}
-
+/// 設定の行の文字（出席アプリと同じく、アイコンなしのシンプルな行）
 struct SettingsLabel: View {
     let title: String
-    let systemName: String
-    let color: Color
+    var systemName: String = ""
+    var color: Color = .accentColor
 
     var body: some View {
-        HStack(spacing: 12) {
-            SettingsIcon(systemName: systemName, color: color)
-            Text(title)
-        }
+        Text(title)
     }
 }
 

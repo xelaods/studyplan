@@ -9,7 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0.0"
+    MARKETING_VERSION: "2.0.0"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_LANGUAGE: ja
 
@@ -36,7 +36,7 @@ targets:
     info:
       path: StudyPlan/Info.plist
       properties:
-        CFBundleDisplayName: 時間割
+        CFBundleDisplayName: 出席・時間割
         CFBundleDevelopmentRegion: ja
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -74,7 +74,7 @@ targets:
     info:
       path: StudyPlanWidget/Info.plist
       properties:
-        CFBundleDisplayName: 時間割
+        CFBundleDisplayName: 出席・時間割
         CFBundleDevelopmentRegion: ja
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)

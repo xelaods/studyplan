@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// やさしい色（ライト・ダークで少しずつ変える）
+/// アプリの色（iOS 標準の色。ライト・ダークは自動で切り替わる）
 enum Soft {
     static func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
         Color(UIColor { trait in
@@ -11,14 +11,15 @@ enum Soft {
         })
     }
 
-    /// 必修・今日の印（くすんだコーラル）
-    static let red = dynamic(0xE07A72, 0xF0958D)
-    /// 選択・リンク（やわらかい青）
-    static let blue = dynamic(0x5E8FDB, 0x86AEEF)
-    /// スクールバス（セージグリーン）
-    static let green = dynamic(0x55A883, 0x7CC4A2)
+    // 出席アプリと同じ、iOS 標準のはっきりした色
+    /// 必修・今日の印
+    static let red = Color(.systemRed)
+    /// 選択・リンク
+    static let blue = Color(.systemBlue)
+    /// スクールバス・出席
+    static let green = Color(.systemGreen)
     /// 注意（あと少し・遅刻）
-    static let orange = dynamic(0xDB8A55, 0xEFA676)
+    static let orange = Color(.systemOrange)
 }
 
 extension CourseColor {

@@ -9,6 +9,7 @@ struct StudyPlanWidgets: WidgetBundle {
         WeekWidget()
         CommuteWidget()
         BusWidget()
+        AttendWidget()
     }
 }
 
