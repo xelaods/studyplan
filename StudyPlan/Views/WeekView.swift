@@ -3,7 +3,8 @@ import SwiftUI
 /// 1週間の時間割（マスをタップして授業を選ぶ）
 struct WeekView: View {
     @EnvironmentObject var store: Store
-    @State var path: [UUID] = []
+    @EnvironmentObject var router: AppRouter
+    @State var path = NavigationPath()
     @State var picking: SlotTarget?
     @State var importing: ImportSource?
     @State var editing: Course?
@@ -20,6 +21,13 @@ struct WeekView: View {
                     termMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        path.append(WeekRoute.courses)
+                    } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button { importing = .portal } label: { Label("エドポタから取り込む", systemImage: "square.and.arrow.down") }
                         Button { importing = .syllabus } label: { Label("Webシラバスで探す", systemImage: "magnifyingglass") }
@@ -33,6 +41,14 @@ struct WeekView: View {
             .navigationDestination(for: UUID.self) { id in
                 CourseDetailView(courseID: id)
             }
+            .navigationDestination(for: WeekRoute.self) { route in
+                switch route {
+                case .courses: CoursesView()
+                }
+            }
+            .onChange(of: router.showCourses) { _, show in
+                if show { openCourses() }
+            }
             .sheet(item: $picking) { target in
                 SlotPicker(target: target)
             }
@@ -45,10 +61,17 @@ struct WeekView: View {
                 let args = ProcessInfo.processInfo.arguments
                 if args.contains("-pick") { picking = SlotTarget(day: .wed, period: 3) }
                 if args.contains("-detail"), let first = store.data.courses.first(where: { $0.day == .tue && $0.period == 2 }) {
-                    path = [first.id]
+                    path.append(first.id)
                 }
+                if router.showCourses { openCourses() }
             }
         }
+    }
+
+    private func openCourses() {
+        router.showCourses = false
+        path = NavigationPath()
+        path.append(WeekRoute.courses)
     }
 
     private var shownTerm: Term { termOverride ?? store.term }
@@ -123,6 +146,10 @@ struct WeekView: View {
         }
         .background(Color(.systemBackground))
     }
+}
+
+enum WeekRoute: Hashable {
+    case courses
 }
 
 struct SlotTarget: Identifiable, Hashable {

@@ -12,6 +12,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                EdohenAccountSection()
+
                 Section {
                     Picker(selection: $store.data.termMode) {
                         Text("自動（今は\(TermMode.auto.resolve(on: Clock.now).label)）").tag(TermMode.auto)
@@ -58,7 +60,6 @@ struct SettingsView: View {
                     Text(loggedOut ? "アプリ内のブラウザのログイン情報を消去しました。" :
                             "IDとパスワードはこのアプリには保存されません。ログインの状態はアプリ内のブラウザにだけ残ります。")
                 }
-                .foregroundStyle(.primary)
 
                 Section {
                     widgetStatus
@@ -69,7 +70,6 @@ struct SettingsView: View {
                             } label: {
                                 SettingsLabel(title: "カレンダーへのアクセスを許可", systemName: "calendar.badge.checkmark", color: .red)
                             }
-                            .foregroundStyle(.primary)
                         } else {
                             Toggle(isOn: Binding(get: { CalendarBridge.enabled }, set: { store.setCalendarBridge($0) })) {
                                 SettingsLabel(title: "カレンダー経由で渡す", systemName: "calendar", color: .red)
@@ -80,6 +80,11 @@ struct SettingsView: View {
                         WidgetGallery()
                     } label: {
                         SettingsLabel(title: "ウィジェットの見本", systemName: "square.grid.2x2", color: .purple)
+                    }
+                    NavigationLink {
+                        AttendWidgetHelpView()
+                    } label: {
+                        SettingsLabel(title: "出席登録ウィジェットの使い方", systemName: "number.square", color: .green)
                     }
                 } header: {
                     Text("ウィジェット")

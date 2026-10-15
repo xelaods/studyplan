@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 登録した授業の一覧（曜日ごと）
+/// 登録した授業の一覧（曜日ごと）。時間割タブの右上から開く
 struct CoursesView: View {
     @EnvironmentObject var store: Store
     @State var importing: ImportSource?
@@ -8,7 +8,6 @@ struct CoursesView: View {
     @State var showAllTerms = false
 
     var body: some View {
-        NavigationStack {
             List {
                 let term = store.term
                 let courses = store.data.courses.filter { showAllTerms || $0.term.applies(to: term) }
@@ -34,7 +33,6 @@ struct CoursesView: View {
                         Text("最後に取得：\(JST.format(updated, "M月d日 H:mm"))")
                     }
                 }
-                .foregroundStyle(.primary)
 
                 if courses.isEmpty {
                     Section {
@@ -84,9 +82,6 @@ struct CoursesView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("授業")
-            .navigationDestination(for: UUID.self) { id in
-                CourseDetailView(courseID: id)
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -98,7 +93,6 @@ struct CoursesView: View {
             }
             .sheet(item: $importing) { ImportView(source: $0) }
             .sheet(item: $editing) { CourseEditor(course: $0, isNew: true) }
-        }
     }
 }
 

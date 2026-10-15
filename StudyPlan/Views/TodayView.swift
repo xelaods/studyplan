@@ -4,6 +4,7 @@ import SwiftUI
 struct TodayView: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var router: AppRouter
+    @ObservedObject var attendance = AttendanceStore.shared
     @State var importing: ImportSource?
 
     var body: some View {
@@ -50,6 +51,23 @@ struct TodayView: View {
                 Section {
                     NavigationLink(value: item.course.id) {
                         FocusCard(item: item, label: focus.label, isNow: focus.isNow, now: now)
+                    }
+                    // 授業中か、始まる15分前からは出席登録へすぐ行けるように
+                    if focus.isNow || (JST.isSameDay(item.start, now) && item.start.timeIntervalSince(now) <= 15 * 60) {
+                        Button {
+                            router.attendMode = .register
+                            router.tab = .attend
+                        } label: {
+                            Label("出席を登録", systemImage: "checkmark.circle")
+                        }
+                    }
+                    if let record = attendance.record(for: item.course) {
+                        HStack {
+                            Text("出席状況")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            AttendanceCounts(course: record)
+                        }
                     }
                 }
             }
