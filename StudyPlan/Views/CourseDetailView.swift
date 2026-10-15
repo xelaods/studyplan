@@ -65,7 +65,7 @@ struct CourseDetailView: View {
                         Spacer()
                         Text("\(c.absences)回")
                             .monospacedDigit()
-                            .foregroundStyle(c.absences >= 4 ? Color.red : Color.secondary)
+                            .foregroundStyle(c.absences >= 4 ? Soft.red : Color.secondary)
                     }
                 }
                 Stepper(value: course.lates, in: 0...30) {

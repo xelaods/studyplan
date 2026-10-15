@@ -6,6 +6,7 @@ struct CommuteView: View {
     @EnvironmentObject var store: Store
     @Environment(\.colorScheme) var scheme
     @State var showPage = false
+    @State var showTimetable = ProcessInfo.processInfo.arguments.contains("-bus")
 
     var body: some View {
         NavigationStack {
@@ -34,6 +35,7 @@ struct CommuteView: View {
                 }
             }
             .refreshable { store.refreshCommute(force: true) }
+            .navigationDestination(isPresented: $showTimetable) { BusTimetableView() }
             .sheet(isPresented: $showPage) {
                 SafariView(url: BusSource.url).ignoresSafeArea()
             }
@@ -69,8 +71,8 @@ struct CommuteView: View {
             if let bus = plan?.bus, JST.isSameDay(bus.date, now) {
                 Section("次のスクールバス") {
                     if bus.hasTimes {
-                        NextBusRow(title: "大学発 → おおたかの森", times: bus.next(bus.toStation, after: minutes), now: minutes)
-                        NextBusRow(title: "おおたかの森発 → 大学", times: bus.next(bus.toUniv, after: minutes), now: minutes)
+                        NextBusRow(title: "おおたかの森駅発 → 大学", times: bus.next(bus.toUniv, after: minutes), now: minutes, color: CommuteColors.bus)
+                        NextBusRow(title: "大学発 → おおたかの森駅", times: bus.next(bus.toStation, after: minutes), now: minutes, color: CommuteColors.train)
                     } else {
                         Label(bus.running ? "\(bus.dia)（時刻はページで確認してください）" : "今日はバスの運行がありません",
                               systemImage: "bus")
@@ -121,11 +123,18 @@ struct CommuteView: View {
             }
 
             Section {
-                NavigationLink {
-                    BusTimetableView()
+                Button {
+                    showTimetable = true
                 } label: {
-                    SettingsLabel(title: "スクールバス時刻表", systemName: "tablecells", color: .green)
+                    HStack {
+                        SettingsLabel(title: "スクールバス時刻表", systemName: "tablecells", color: .green)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+                .foregroundStyle(.primary)
                 Button {
                     showPage = true
                 } label: {
@@ -155,6 +164,7 @@ struct NextBusRow: View {
     let title: String
     let times: [Int]
     let now: Int
+    var color: Color = CommuteColors.bus
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -171,7 +181,7 @@ struct NextBusRow: View {
                             Text(JST.hm(t))
                                 .font(.system(size: i == 0 ? 24 : 18, weight: .bold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundStyle(i == 0 ? CommuteColors.bus : Color.primary)
+                                .foregroundStyle(i == 0 ? color : Color.primary)
                             Text(CommuteLabel.left(t - now))
                                 .font(.caption)
                                 .foregroundStyle(t - now <= 5 ? CommuteColors.warn : Color.secondary)
@@ -186,72 +196,236 @@ struct NextBusRow: View {
 }
 
 /// スクールバスの時刻表（大学のページと同じダイヤ判定）
+/// 1時間ごとの行に、左＝おおたかの森駅発、右＝大学発の分を並べる（バス停の時刻表と同じ形）
 struct BusTimetableView: View {
-    @State var date = Clock.now
-    @State var toUniv = false
-    @State var day: BusDay?
+    @State var selected = JST.startOfDay(Clock.now)
+    @State var html: String?
     @State var error: String?
 
-    var body: some View {
-        List {
-            Section {
-                DatePicker("日付", selection: $date, displayedComponents: .date)
-                Picker("方向", selection: $toUniv) {
-                    Text("大学発").tag(false)
-                    Text("おおたかの森発").tag(true)
-                }
-                .pickerStyle(.segmented)
-            } footer: {
-                if let day { Text(day.dia) }
-            }
-
-            if let error {
-                Section { Text(error).foregroundStyle(.secondary) }
-            } else if let day {
-                if !day.running {
-                    Section { Text("この日はバスの運行がありません").foregroundStyle(.secondary) }
-                } else if day.unknown {
-                    Section { Text("\(day.dia)の時刻は大学のページで確認してください").foregroundStyle(.secondary) }
-                } else {
-                    let list = toUniv ? day.toUniv : day.toStation
-                    let hours = Array(Set(list.map { $0 / 60 })).sorted()
-                    let isToday = JST.isSameDay(date, Clock.now)
-                    let nowMin = JST.minutes(Clock.now)
-                    Section(toUniv ? "おおたかの森駅 → 大学" : "大学 → おおたかの森駅") {
-                        ForEach(hours, id: \.self) { h in
-                            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                                Text("\(h)")
-                                    .font(.system(.title3, design: .rounded).weight(.bold))
-                                    .monospacedDigit()
-                                    .frame(width: 30, alignment: .trailing)
-                                Text(list.filter { $0 / 60 == h }.map { String(format: "%02d", $0 % 60) }.joined(separator: "  "))
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(isToday && h < nowMin / 60 ? Color.secondary : Color.primary)
-                            }
-                        }
-                    }
-                }
-            } else {
-                Section { ProgressView() }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("スクールバス時刻表")
-        .navigationBarTitleDisplayMode(.inline)
-        .task(id: date) { await load() }
+    private var days: [Date] {
+        let today = JST.startOfDay(Clock.now)
+        return (0..<7).map { JST.adding(days: $0, to: today) }
     }
 
-    private func load() async {
-        if Store.isDemo {
-            day = Sample.commutePlan().bus
-            return
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                Section {
+                    dayStrip
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                }
+
+                if let error {
+                    Section { Text(error).foregroundStyle(.secondary) }
+                } else if let day = currentDay {
+                    content(day, proxy: proxy)
+                } else {
+                    Section { HStack { ProgressView(); Text("読み込み中…").foregroundStyle(.secondary) } }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("スクールバス時刻表")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await load() }
+            .refreshable { await load(force: true) }
+            .onChange(of: selected) { _, _ in scrollToNow(proxy) }
+            .onChange(of: html) { _, _ in scrollToNow(proxy) }
         }
+    }
+
+    private var currentDay: BusDay? {
+        if Store.isDemo { return Sample.commutePlan().bus.map { var d = $0; d.date = selected; return d } }
+        guard let html else { return nil }
+        return BusSource.day(JST.date(selected, minutes: 12 * 60), html: html)
+    }
+
+    private var isToday: Bool { JST.isSameDay(selected, Clock.now) }
+
+    // MARK: 日付の切り替え（1週間分）
+
+    private var dayStrip: some View {
+        HStack(spacing: 4) {
+            ForEach(days, id: \.self) { d in
+                let on = JST.isSameDay(d, selected)
+                let wd = JST.calendar.component(.weekday, from: d) - 1
+                let info = badge(for: d)
+                Button {
+                    selected = d
+                } label: {
+                    VStack(spacing: 3) {
+                        Text(["日", "月", "火", "水", "木", "金", "土"][wd])
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(on ? Color.white.opacity(0.9) : (wd == 0 ? Soft.red : Color.secondary))
+                        Text("\(JST.day(d))")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundStyle(on ? Color.white : Color.primary)
+                        Text(info)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(on ? Color.white.opacity(0.9) : (info == "運休" ? Color.secondary : Soft.green))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background(on ? Soft.blue : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func badge(for d: Date) -> String {
+        if Store.isDemo {
+            let wd = JST.calendar.component(.weekday, from: d)
+            return wd == 1 ? "運休" : "A"
+        }
+        guard let html else { return " " }
+        let day = BusSource.day(JST.date(d, minutes: 12 * 60), html: html)
+        if !day.running { return "運休" }
+        if day.diaKey == "A" || day.diaKey == "B" { return day.diaKey }
+        return "特別"
+    }
+
+    // MARK: 時刻表
+
+    @ViewBuilder
+    private func content(_ day: BusDay, proxy: ScrollViewProxy) -> some View {
+        let now = JST.minutes(Clock.now)
+        if !day.running {
+            Section {
+                Label("この日はスクールバスの運行がありません", systemImage: "moon.zzz")
+                    .foregroundStyle(.secondary)
+            }
+        } else if day.unknown {
+            Section {
+                Label("\(day.dia)です。時刻は大学のページで確認してください", systemImage: "exclamationmark.circle")
+                    .foregroundStyle(.secondary)
+                Link("運行予定を確認", destination: BusWidgetView.scheduleURL)
+            }
+        } else {
+            if isToday {
+                Section("次のバス") {
+                    NextBusRow(title: "おおたかの森駅発 → 大学", times: day.next(day.toUniv, after: now), now: now, color: CommuteColors.bus)
+                    NextBusRow(title: "大学発 → おおたかの森駅", times: day.next(day.toStation, after: now), now: now, color: CommuteColors.train)
+                }
+            }
+            let nextUniv = isToday ? day.toUniv.first { $0 >= now } : nil
+            let nextStation = isToday ? day.toStation.first { $0 >= now } : nil
+            let hours = Array(Set((day.toUniv + day.toStation).map { $0 / 60 })).sorted()
+            Section {
+                header
+                ForEach(hours, id: \.self) { h in
+                    HourRow(hour: h,
+                            left: day.toUniv.filter { $0 / 60 == h },
+                            right: day.toStation.filter { $0 / 60 == h },
+                            now: isToday ? now : nil,
+                            nextLeft: nextUniv, nextRight: nextStation)
+                        .id(h)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+                }
+            } header: {
+                HStack {
+                    Text("\(JST.month(selected))月\(JST.day(selected))日")
+                    Spacer()
+                    Text(day.dia)
+                }
+            } footer: {
+                Text("色付きの時刻が次のバスです。過ぎた便は薄く表示します。")
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 0) {
+            Text("時")
+                .frame(width: 34)
+            Color.clear.frame(width: 1)
+            Label("おおたかの森駅発", systemImage: "arrow.right")
+                .labelStyle(TrailingIconLabel())
+                .foregroundStyle(CommuteColors.bus)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 10)
+            Label("大学発", systemImage: "arrow.right")
+                .labelStyle(TrailingIconLabel())
+                .foregroundStyle(CommuteColors.train)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 10)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.vertical, 6)
+        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+    }
+
+    private func scrollToNow(_ proxy: ScrollViewProxy) {
+        guard isToday else { return }
+        let h = JST.minutes(Clock.now) / 60
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation { proxy.scrollTo(max(8, h - 1), anchor: .top) }
+        }
+    }
+
+    private func load(force: Bool = false) async {
+        if Store.isDemo { html = ""; return }
         do {
-            day = try await BusSource.day(date)
+            html = try await BusSource.html(force: force)
             error = nil
         } catch {
             self.error = "バス時刻表を取得できません"
         }
+    }
+}
+
+private struct TrailingIconLabel: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 3) {
+            configuration.title
+            configuration.icon.font(.caption2.weight(.bold))
+        }
+    }
+}
+
+/// 1時間分の行：時｜駅発の分｜大学発の分
+private struct HourRow: View {
+    let hour: Int
+    let left: [Int]
+    let right: [Int]
+    let now: Int?
+    let nextLeft: Int?
+    let nextRight: Int?
+
+    var body: some View {
+        let past = now.map { (hour + 1) * 60 <= $0 } ?? false
+        HStack(alignment: .top, spacing: 0) {
+            Text("\(hour)")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(past ? Color.secondary : Color.primary)
+                .frame(width: 34)
+                .padding(.vertical, 8)
+            Rectangle().fill(Color.secondary.opacity(0.2)).frame(width: 1)
+            minutes(left, next: nextLeft, color: CommuteColors.bus)
+            Rectangle().fill(Color.secondary.opacity(0.12)).frame(width: 1)
+            minutes(right, next: nextRight, color: CommuteColors.train)
+        }
+        .opacity(past ? 0.45 : 1)
+    }
+
+    private func minutes(_ list: [Int], next: Int?, color: Color) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 4), alignment: .leading, spacing: 4) {
+            ForEach(list, id: \.self) { t in
+                let isNext = t == next
+                let gone = now.map { t < $0 } ?? false
+                Text(String(format: "%02d", t % 60))
+                    .font(.system(size: 17, weight: isNext ? .bold : .regular, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(isNext ? Color.white : (gone ? Color.secondary : Color.primary))
+                    .frame(width: 32, height: 26)
+                    .background(isNext ? color : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.leading, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

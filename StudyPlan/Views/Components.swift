@@ -48,15 +48,15 @@ struct CourseListRow: View {
             if course.isRequired {
                 Text("必修")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Soft.red)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.red.opacity(0.12), in: Capsule())
+                    .background(Soft.red.opacity(0.14), in: Capsule())
             }
             if course.absences > 0 {
                 Text("欠席\(course.absences)")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(course.absences >= 4 ? Color.red : Color.secondary)
+                    .foregroundStyle(course.absences >= 4 ? Soft.red : Color.secondary)
             }
         }
     }
@@ -95,7 +95,7 @@ struct SettingsIcon: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: 29, height: 29)
-            .background(color.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(color.blended(with: .white, by: 0.12).gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 }
 

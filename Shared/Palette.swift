@@ -1,10 +1,31 @@
 import SwiftUI
 
+/// やさしい色（ライト・ダークで少しずつ変える）
+enum Soft {
+    static func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
+        Color(UIColor { trait in
+            let hex = trait.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
+                           green: CGFloat((hex >> 8) & 0xFF) / 255,
+                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        })
+    }
+
+    /// 必修・今日の印（くすんだコーラル）
+    static let red = dynamic(0xE07A72, 0xF0958D)
+    /// 選択・リンク（やわらかい青）
+    static let blue = dynamic(0x5E8FDB, 0x86AEEF)
+    /// スクールバス（セージグリーン）
+    static let green = dynamic(0x55A883, 0x7CC4A2)
+    /// 注意（あと少し・遅刻）
+    static let orange = dynamic(0xDB8A55, 0xEFA676)
+}
+
 extension CourseColor {
     var color: Color {
         switch self {
-        case .red: return .red
-        case .blue: return .blue
+        case .red: return Soft.red
+        case .blue: return Soft.blue
         }
     }
 }
@@ -14,12 +35,12 @@ struct CourseTint {
     let base: Color
     let scheme: ColorScheme
 
-    var fill: Color { base.opacity(scheme == .dark ? 0.30 : 0.16) }
-    var strong: Color { base.opacity(scheme == .dark ? 0.55 : 0.32) }
+    var fill: Color { base.opacity(scheme == .dark ? 0.24 : 0.13) }
+    var strong: Color { base.opacity(scheme == .dark ? 0.45 : 0.26) }
 
     /// 文字は少し暗め（ダークでは明るめ）にして読みやすく
     var text: Color {
-        scheme == .dark ? base.blended(with: .white, by: 0.45) : base.blended(with: .black, by: 0.45)
+        scheme == .dark ? base.blended(with: .white, by: 0.35) : base.blended(with: .black, by: 0.35)
     }
 }
 

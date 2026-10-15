@@ -92,7 +92,7 @@ struct WeekView: View {
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(isToday ? Color.white : Color.secondary)
                                 .frame(width: 28, height: 28)
-                                .background(isToday ? Color.red : Color.clear, in: Circle())
+                                .background(isToday ? Soft.red : Color.clear, in: Circle())
                                 .frame(maxWidth: .infinity)
                         }
                     }

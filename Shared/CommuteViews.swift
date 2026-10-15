@@ -4,11 +4,11 @@ import WidgetKit
 // 乗り継ぎ表の表示（アプリとウィジェットで共通）
 
 enum CommuteColors {
-    static let bus = Color(red: 0x1f / 255, green: 0x8a / 255, blue: 0x5b / 255)
-    static let train = Color(red: 0x2f / 255, green: 0x6f / 255, blue: 0xde / 255)
-    static let warn = Color(red: 0xe0 / 255, green: 0x57 / 255, blue: 0x3b / 255)
+    static let bus = Soft.green
+    static let train = Soft.blue
+    static let warn = Soft.orange
     static func highlight(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(red: 0x1d / 255, green: 0x2a / 255, blue: 0x44 / 255) : Color(red: 0xe7 / 255, green: 0xf0 / 255, blue: 1)
+        scheme == .dark ? Soft.blue.opacity(0.18) : Soft.blue.opacity(0.10)
     }
 }
 

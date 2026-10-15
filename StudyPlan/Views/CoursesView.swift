@@ -55,7 +55,7 @@ struct CoursesView: View {
                                         Button(c.isRequired ? "選択にする" : "必修にする") {
                                             store.setRequired(c.id, !c.isRequired)
                                         }
-                                        .tint(c.isRequired ? .blue : .red)
+                                        .tint(c.isRequired ? Soft.blue : Soft.red)
                                     }
                                 }
                                 .onDelete { idx in

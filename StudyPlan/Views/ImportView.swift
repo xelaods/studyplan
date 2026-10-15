@@ -25,7 +25,7 @@ struct ImportView: View {
                 if web.progress > 0, web.progress < 1 {
                     ProgressView(value: web.progress)
                         .progressViewStyle(.linear)
-                        .tint(.blue)
+                        .tint(Soft.blue)
                 }
             }
             .safeAreaInset(edge: .bottom) { bottomBar }

@@ -60,7 +60,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/shots"
           for mode in light dark; do
             xcrun simctl ui "$UDID" appearance $mode
-            for spec in "1-today|-tab today" "2-week|-tab week" "9-commute|-tab commute" "3-courses|-tab courses" "4-settings|-tab settings" "5-pick|-tab week -pick" "6-detail|-tab week -detail" "7-import|-import -results" "8-widgets|-gallery"; do
+            for spec in "1-today|-tab today" "2-week|-tab week" "9-commute|-tab commute" "10-bus|-tab commute -bus" "3-courses|-tab courses" "4-settings|-tab settings" "5-pick|-tab week -pick" "6-detail|-tab week -detail" "7-import|-import -results" "8-widgets|-gallery"; do
               name=${spec%%|*}; args=${spec#*|}
               xcrun simctl terminate "$UDID" app.studyplan || true
               xcrun simctl launch "$UDID" app.studyplan -demo -now 2026-10-13T10:20 $args

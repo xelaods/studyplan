@@ -191,7 +191,7 @@ struct TodayWidgetView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(JST.weekday(now)?.long ?? JST.format(now, "EEEE"))
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.red)
+                .foregroundStyle(Soft.red)
             Text("\(JST.day(now))")
                 .font(.system(size: 36, weight: .regular))
                 .monospacedDigit()
@@ -348,7 +348,7 @@ struct WeekWidgetView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(d == today ? Color.white : Color.secondary)
                         .frame(width: 22, height: 22)
-                        .background(d == today ? Color.red : Color.clear, in: Circle())
+                        .background(d == today ? Soft.red : Color.clear, in: Circle())
                         .frame(maxWidth: .infinity)
                 }
             }
