@@ -79,7 +79,8 @@ struct MainTabView: View {
             if args.contains("-import") { importing = .portal }
         }
         .task {
-            // 出席登録の結果をウィジェットから通知するため
+            // 出席登録の結果をウィジェットから通知するため（見本の表示では聞かない）
+            guard !Store.isDemo else { return }
             _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
             await AttendanceStore.shared.refreshIfStale()
         }
