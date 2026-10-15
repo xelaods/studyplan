@@ -228,8 +228,6 @@ struct BusTimetableView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task { await load() }
             .refreshable { await load(force: true) }
-            .onChange(of: selected) { _, _ in scrollToNow(proxy) }
-            .onChange(of: html) { _, _ in scrollToNow(proxy) }
         }
     }
 
@@ -351,8 +349,8 @@ struct BusTimetableView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 10)
         }
-        .font(.caption.weight(.semibold))
-        .padding(.vertical, 6)
+        .font(.footnote.weight(.semibold))
+        .padding(.vertical, 8)
         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
     }
 
